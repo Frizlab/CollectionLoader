@@ -109,6 +109,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   **************** */
 	
 	public func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
+#warning("TODO: apiOrderProperty (requires the start offset of the page info…)")
 		let helper = BMORequestHelperForLoader<FetchedObject, Bridge.Metadata>(
 			loadingOperationDelegate: delegate,
 			importChangesProcessing: { changes, throwIfCancelled in
