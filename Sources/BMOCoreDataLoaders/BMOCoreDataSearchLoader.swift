@@ -36,22 +36,22 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	public typealias PreCompletionResults = LocalDbChanges<FetchedObject, Bridge.Metadata>
 	
 	public var bridge: Bridge
+	public let localDb: Bridge.LocalDb
 	public var pageInfoRetriever: PageInfoRetriever
 	public let resultsController: NSFetchedResultsController<FetchedObject>
 	
-	public var context: NSManagedObjectContext {
-		resultsController.managedObjectContext
-	}
+	public var pageInfoToRequestUserInfo: (PageInfo) -> Bridge.RequestUserInfo
 	
 	init(
 		bridge: Bridge,
-		context: NSManagedObjectContext,
+		localDb: Bridge.LocalDb,
 		pageInfoRetriever: PageInfoRetriever,
 		fetchRequest: NSFetchRequest<FetchedObject>,
 		deletionDateProperty: NSAttributeDescription? = nil,
 		apiOrderProperty: NSAttributeDescription? = nil,
 		apiOrderDelta: Int = 1,
-		fetchRequestToBridgeRequest: (NSFetchRequest<FetchedObject>) -> Bridge.LocalDb.DbRequest
+		fetchRequestToBridgeRequest: (NSFetchRequest<FetchedObject>) -> Bridge.LocalDb.DbRequest,
+		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo
 	) throws {
 		assert(apiOrderDelta > 0)
 		assert(deletionDateProperty.flatMap{ ["NSDate", "Date"].contains($0.attributeValueClassName) } ?? true)
@@ -67,9 +67,11 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		}
 		
 		self.bridge = bridge
+		self.localDb = localDb
 		self.pageInfoRetriever = pageInfoRetriever
+		self.pageInfoToRequestUserInfo = pageInfoToRequestUserInfo
 		self.localDbRequest = fetchRequestToBridgeRequest(fetchRequest)
-		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: controllerFetchRequest, managedObjectContext: context, sectionNameKeyPath: nil, cacheName: nil)
+		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: controllerFetchRequest, managedObjectContext: localDb.context, sectionNameKeyPath: nil, cacheName: nil)
 		
 		self.apiOrderDelta = apiOrderDelta
 		self.apiOrderProperty = apiOrderProperty
@@ -107,7 +109,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   **************** */
 	
 	public func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
-		throw NotImplemented()
+		let request = Request<Bridge.LocalDb, Bridge.RequestUserInfo>(localDb: localDb, localRequest: localDbRequest, remoteUserInfo: pageInfoToRequestUserInfo(pageInfo))
+		return RequestOperation(bridge: bridge, request: request, remoteOperationQueue: OperationQueue(), computeOperationQueue: OperationQueue())
 	}
 	
 	public func results(from finishedLoadingOperation: LoadingOperation) -> Result<CompletionResults, Error> {
@@ -136,7 +139,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	
 	public func onContext_delete(object: FetchedObject) {
 		if let deletionDateProperty {object.setValue(Date(), forKey: deletionDateProperty.name)}
-		else                        {context.delete(object)}
+		else                        {localDb.context.delete(object)}
 	}
 	
 	/* ***************
@@ -150,4 +153,3 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	private let apiOrderDelta: Int /* Must be > 0 */
 	
 }
-struct NotImplemented : Error {}
