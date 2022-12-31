@@ -94,11 +94,12 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   ********************************************* */
 	
 	public func onContext_numberOfObjects(from preCompletionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>) -> Int {
-		return 0
+		return preCompletionResults.importedObjects.filter{ $0.object is FetchedObject }.count
 	}
 	
+#warning("TODO: Find a way to avoid reprocessing the imported objects to remove objects of the incorrect type…")
 	public func onContext_object(at index: Int, from preCompletionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>) -> FetchedObject {
-		preconditionFailure()
+		return preCompletionResults.importedObjects.compactMap{ $0.object as? FetchedObject }[index]
 	}
 	
 	/* ****************
