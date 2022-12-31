@@ -109,7 +109,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   **************** */
 	
 	public func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
-		let request = Request<Bridge.LocalDb, Bridge.RequestUserInfo>(localDb: localDb, localRequest: localDbRequest, remoteUserInfo: pageInfoToRequestUserInfo(pageInfo))
+		let request = Request(localDb: localDb, localRequest: localDbRequest, remoteUserInfo: pageInfoToRequestUserInfo(pageInfo))
 		return RequestOperation(bridge: bridge, request: request, remoteOperationQueue: OperationQueue(), computeOperationQueue: OperationQueue())
 	}
 	
