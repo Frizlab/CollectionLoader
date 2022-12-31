@@ -33,7 +33,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	
 	public typealias PageInfo = PageInfoRetriever.PageInfo
 	public typealias CompletionResults = PageInfoRetriever.CompletionResults
-	public typealias PreCompletionResults = LocalDbChanges<FetchedObject, Bridge.Metadata>
+	public typealias PreCompletionResults = [FetchedObject]
 	
 	public var bridge: Bridge
 	public let localDb: Bridge.LocalDb
@@ -96,12 +96,12 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   MARK: Get Objects from Pre-Completion Results
 	   ********************************************* */
 	
-	public func onContext_numberOfObjects(from preCompletionResults: LocalDbChanges<FetchedObject, Bridge.Metadata>) -> Int {
-		return preCompletionResults.importedObjects.count
+	public func onContext_numberOfObjects(from preCompletionResults: PreCompletionResults) -> Int {
+		return preCompletionResults.count
 	}
 	
-	public func onContext_object(at index: Int, from preCompletionResults: LocalDbChanges<FetchedObject, Bridge.Metadata>) -> FetchedObject {
-		return preCompletionResults.importedObjects[index].object
+	public func onContext_object(at index: Int, from preCompletionResults: PreCompletionResults) -> FetchedObject {
+		return preCompletionResults[index]
 	}
 	
 	/* ****************
@@ -109,8 +109,19 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   **************** */
 	
 	public func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
+		let helper = BMORequestHelperForLoader<FetchedObject, Bridge.Metadata>(
+			loadingOperationDelegate: delegate,
+			importChangesProcessing: { changes, throwIfCancelled in
+				/* We only want objects of the correct type in the pre-completion results. */
+				try changes.importedObjects.compactMap{
+					try throwIfCancelled()
+					return $0.object as? FetchedObject
+				}
+			}
+		)
+		let helpers = RequestHelperCollectionForOldRuntimes(helper)
 		let request = Request(localDb: localDb, localRequest: localDbRequest, remoteUserInfo: pageInfoToRequestUserInfo(pageInfo))
-		return RequestOperation(bridge: bridge, request: request, remoteOperationQueue: OperationQueue(), computeOperationQueue: OperationQueue())
+		return RequestOperation(bridge: bridge, request: request, additionalHelpers: helpers, remoteOperationQueue: OperationQueue(), computeOperationQueue: OperationQueue())
 	}
 	
 	public func results(from finishedLoadingOperation: LoadingOperation) -> Result<CompletionResults, Error> {
