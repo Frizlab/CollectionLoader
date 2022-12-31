@@ -23,7 +23,7 @@ import CollectionLoader
 
 
 
-public struct BMOCoreDataSearchLoader<Bridge : BridgeProtocol, FetchedObject : NSManagedObject, PageInfoRetriever : PageInfoRetrieverProtocol> : CollectionLoaderHelperProtocol
+public final class BMOCoreDataSearchLoader<Bridge : BridgeProtocol, FetchedObject : NSManagedObject, PageInfoRetriever : PageInfoRetrieverProtocol> : CollectionLoaderHelperProtocol
 where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		Bridge.LocalDb.DbContext == NSManagedObjectContext,
 		PageInfoRetriever.CompletionResults == LocalDbChanges<NSManagedObject, Bridge.Metadata>?
@@ -35,12 +35,12 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	public typealias CompletionResults = PageInfoRetriever.CompletionResults
 	public typealias PreCompletionResults = [FetchedObject]
 	
-	public var bridge: Bridge
+	public let bridge: Bridge
 	public let localDb: Bridge.LocalDb
-	public var pageInfoRetriever: PageInfoRetriever
+	public let pageInfoRetriever: PageInfoRetriever
 	public let resultsController: NSFetchedResultsController<FetchedObject>
 	
-	public var pageInfoToRequestUserInfo: (PageInfo) -> Bridge.RequestUserInfo
+	public let pageInfoToRequestUserInfo: (PageInfo) -> Bridge.RequestUserInfo
 	
 	init(
 		bridge: Bridge,

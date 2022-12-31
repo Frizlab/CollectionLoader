@@ -23,7 +23,7 @@ import CollectionLoader
 
 
 
-public struct BMOCoreDataListElementLoader<Bridge : BridgeProtocol, FetchedObject : NSManagedObject, PageInfoRetriever : PageInfoRetrieverProtocol> : CollectionLoaderHelperProtocol
+public final class BMOCoreDataListElementLoader<Bridge : BridgeProtocol, FetchedObject : NSManagedObject, PageInfoRetriever : PageInfoRetrieverProtocol> : CollectionLoaderHelperProtocol
 where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		Bridge.LocalDb.DbContext == NSManagedObjectContext,
 		PageInfoRetriever.CompletionResults == LocalDbChanges<NSManagedObject, Bridge.Metadata>?
@@ -35,47 +35,83 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	public typealias CompletionResults = PageInfoRetriever.CompletionResults
 	public typealias PreCompletionResults = [FetchedObject]
 	
-	public var bridge: Bridge
+	public let bridge: Bridge
 	public let localDb: Bridge.LocalDb
-	public var pageInfoRetriever: PageInfoRetriever
+	public let pageInfoRetriever: PageInfoRetriever
 	public let resultsController: NSFetchedResultsController<FetchedObject>
 	
-	public var pageInfoToRequestUserInfo: (PageInfo) -> Bridge.RequestUserInfo
+	public let pageInfoToRequestUserInfo: (PageInfo) -> Bridge.RequestUserInfo
 	
-	init(
+	public private(set) var listElementObjectID: NSManagedObjectID?
+	
+	public convenience init(
 		bridge: Bridge,
 		localDb: Bridge.LocalDb,
 		pageInfoRetriever: PageInfoRetriever,
-		fetchRequest: NSFetchRequest<FetchedObject>,
-		deletionDateProperty: NSAttributeDescription? = nil,
-		apiOrderProperty: NSAttributeDescription? = nil,
-		apiOrderDelta: Int = 1,
-		fetchRequestToBridgeRequest: (NSFetchRequest<FetchedObject>) -> Bridge.LocalDb.DbRequest,
-		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo
+		listElementEntity: NSEntityDescription, listProperty: NSRelationshipDescription,
+		apiOrderProperty: NSAttributeDescription, apiOrderDelta: Int = 1,
+		additionalFetchRequestPredicate: NSPredicate? = nil,
+		fetchRequestToBridgeRequest: (NSFetchRequest<NSManagedObject>) -> Bridge.LocalDb.DbRequest
+	) throws {
+		let fetchRequest = NSFetchRequest<NSManagedObject>()
+		fetchRequest.entity = listElementEntity
+		fetchRequest.fetchLimit = 1
+		try self.init(
+			bridge: bridge, localDb: localDb, pageInfoRetriever: pageInfoRetriever,
+			listElementFetchRequest: fetchRequest,
+			listProperty: listProperty, apiOrderProperty: apiOrderProperty, apiOrderDelta: apiOrderDelta,
+			additionalFetchRequestPredicate: additionalFetchRequestPredicate,
+			fetchRequestToBridgeRequest: fetchRequestToBridgeRequest
+		)
+	}
+	
+	public init<ListElementObject : NSManagedObject>(
+		bridge: Bridge,
+		localDb: Bridge.LocalDb,
+		pageInfoRetriever: PageInfoRetriever,
+		listElementFetchRequest: NSFetchRequest<ListElementObject>, listProperty: NSRelationshipDescription,
+		apiOrderProperty: NSAttributeDescription, apiOrderDelta: Int = 1,
+		additionalFetchRequestPredicate: NSPredicate? = nil,
+		fetchRequestToBridgeRequest: (NSFetchRequest<ListElementObject>) -> Bridge.LocalDb.DbRequest
 	) throws {
 		assert(apiOrderDelta > 0)
-		assert(deletionDateProperty.flatMap{ ["NSDate", "Date"].contains($0.attributeValueClassName) } ?? true)
-		
-		let controllerFetchRequest = fetchRequest.copy() as! NSFetchRequest<FetchedObject> /* We must copy because of ObjC legacy. */
-		if let apiOrderProperty {
-			controllerFetchRequest.sortDescriptors = [NSSortDescriptor(key: apiOrderProperty.name, ascending: true)] + (controllerFetchRequest.sortDescriptors ?? [])
-		}
-		if let deletionDateProperty {
-			let deletionPredicate = NSPredicate(format: "%K == NULL", deletionDateProperty.name)
-			if let currentPredicate = controllerFetchRequest.predicate {controllerFetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [currentPredicate, deletionPredicate])}
-			else                                                       {controllerFetchRequest.predicate = deletionPredicate}
-		}
+		assert(listProperty.isOrdered)
 		
 		self.bridge = bridge
 		self.localDb = localDb
 		self.pageInfoRetriever = pageInfoRetriever
-		self.pageInfoToRequestUserInfo = pageInfoToRequestUserInfo
-		self.localDbRequest = fetchRequestToBridgeRequest(fetchRequest)
-		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: controllerFetchRequest, managedObjectContext: localDb.context, sectionNameKeyPath: nil, cacheName: nil)
+		
+		self.localDbRequest = fetchRequestToBridgeRequest(listElementFetchRequest)
+		
+		self.listProperty = listProperty
 		
 		self.apiOrderDelta = apiOrderDelta
 		self.apiOrderProperty = apiOrderProperty
-		self.deletionDateProperty = deletionDateProperty
+		
+		var listObjectID: NSManagedObjectID?
+		try localDb.context.performAndWaitRW{ listObjectID = try localDb.context.fetch(listElementFetchRequest).first?.objectID }
+		listElementObjectID = listObjectID
+		
+		let fetchedResultsControllerFetchRequest = NSFetchRequest<FetchedObject>()
+		fetchedResultsControllerFetchRequest.entity = listProperty.destinationEntity!
+		fetchedResultsControllerFetchRequest.sortDescriptors = [NSSortDescriptor(key: apiOrderProperty.name, ascending: true)]
+		if let listObjectID {
+			fetchedResultsControllerFetchRequest.predicate = NSPredicate(format: "%K == %@", listProperty.inverseRelationship!.name, listObjectID)
+		} else {
+			/* We want to retrieve the objects whose inverse relationship name of the list property match the list element fetch request, but the list element fetch request currently matches nothing.
+			 * We have to create a predicate to match anyway.
+			 * Two case:
+			 *   - The list element fetch request has a predicate: it should be enough to add the inverse relationship name to the key paths of the predicate.
+			 *   - The list element fetch request does not have a predicate: we assume then any object of the type we want whose inverse relationship name value is not nil will match.
+			 *     Indeed, if it is set, the value must be to the list element we want as there should only be one in the db… */
+			fetchedResultsControllerFetchRequest.predicate = (
+				listElementFetchRequest.predicate?.predicateByAddingKeyPathPrefix(listProperty.inverseRelationship!.name) ??
+				NSPredicate(format: "%K != NULL", listProperty.inverseRelationship!.name)
+			)
+		}
+		if let additionalFetchRequestPredicate, let fPredicate = fetchedResultsControllerFetchRequest.predicate {fetchedResultsControllerFetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [fPredicate, additionalFetchRequestPredicate])}
+		else if let additionalFetchRequestPredicate                                                             {fetchedResultsControllerFetchRequest.predicate = additionalFetchRequestPredicate}
+		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: fetchedResultsControllerFetchRequest, managedObjectContext: localDb.context, sectionNameKeyPath: nil, cacheName: nil)
 		
 		try resultsController.performFetch()
 	}
@@ -160,8 +196,9 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	
 	private let localDbRequest: Bridge.LocalDb.DbRequest
 	
-	private let deletionDateProperty: NSAttributeDescription?
-	private let apiOrderProperty: NSAttributeDescription?
+	private let listProperty: NSRelationshipDescription
+	
+	private let apiOrderProperty: NSAttributeDescription
 	private let apiOrderDelta: Int /* Must be > 0 */
 	
 }
