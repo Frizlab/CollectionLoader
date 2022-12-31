@@ -23,15 +23,19 @@ import CollectionLoader
 
 
 
-public struct BMOCoreDataSearchLoader<Bridge : BridgeProtocol, FetchedObject : NSManagedObject, PageInfo : PageInfoProtocol> : CollectionLoaderHelperProtocol
-where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */, Bridge.LocalDb.DbContext == NSManagedObjectContext {
+public struct BMOCoreDataSearchLoader<Bridge : BridgeProtocol, FetchedObject : NSManagedObject, PageInfoRetriever : PageInfoRetrieverProtocol> : CollectionLoaderHelperProtocol
+where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
+		Bridge.LocalDb.DbContext == NSManagedObjectContext,
+		PageInfoRetriever.CompletionResults == LocalDbChanges<NSManagedObject, Bridge.Metadata>
+{
 	
 	public typealias LoadingOperation = Bridge.RemoteDb.RemoteOperation
 	
-	public typealias CompletionResults = LocalDbChanges<NSManagedObject, Bridge.Metadata>
+	public typealias PageInfo = PageInfoRetriever.PageInfo
 	public typealias PreCompletionResults = LocalDbChanges<NSManagedObject, Bridge.Metadata>
 	
 	public var bridge: Bridge
+	public var pageInfoRetriever: PageInfoRetriever
 	public let resultsController: NSFetchedResultsController<FetchedObject>
 	
 	public var context: NSManagedObjectContext {
@@ -41,10 +45,11 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */, Bri
 	init(
 		bridge: Bridge,
 		context: NSManagedObjectContext,
+		pageInfoRetriever: PageInfoRetriever,
 		fetchRequest: NSFetchRequest<FetchedObject>,
+		deletionDateProperty: NSAttributeDescription? = nil,
 		apiOrderProperty: NSAttributeDescription? = nil,
 		apiOrderDelta: Int = 1,
-		deletionDateProperty: NSAttributeDescription? = nil,
 		fetchRequestToBridgeRequest: (NSFetchRequest<FetchedObject>) -> Bridge.LocalDb.DbRequest
 	) throws {
 		assert(apiOrderDelta > 0)
@@ -61,6 +66,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */, Bri
 		}
 		
 		self.bridge = bridge
+		self.pageInfoRetriever = pageInfoRetriever
 		self.localDbRequest = fetchRequestToBridgeRequest(fetchRequest)
 		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: controllerFetchRequest, managedObjectContext: context, sectionNameKeyPath: nil, cacheName: nil)
 		
@@ -87,11 +93,11 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */, Bri
 	   MARK: Get Objects from Pre-Completion Results
 	   ********************************************* */
 	
-	public func onContext_numberOfObjects(from preCompletionResults: PreCompletionResults) -> Int {
+	public func onContext_numberOfObjects(from preCompletionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>) -> Int {
 		return 0
 	}
 	
-	public func onContext_object(at index: Int, from preCompletionResults: PreCompletionResults) -> FetchedObject {
+	public func onContext_object(at index: Int, from preCompletionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>) -> FetchedObject {
 		preconditionFailure()
 	}
 	
@@ -112,15 +118,15 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */, Bri
 	   ************************* */
 	
 	public func initialPageInfo() -> PageInfo {
-		preconditionFailure()
+		return pageInfoRetriever.initialPageInfo()
 	}
 	
-	public func nextPageInfo(for completionResults: CompletionResults, from pageInfo: PageInfo) -> PageInfo? {
-		return nil
+	public func nextPageInfo(for completionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>, from pageInfo: PageInfo) -> PageInfo? {
+		return pageInfoRetriever.nextPageInfo(for: completionResults, from: pageInfo)
 	}
 	
-	public func previousPageInfo(for completionResults: CompletionResults, from pageInfo: PageInfo) -> PageInfo? {
-		return nil
+	public func previousPageInfo(for completionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>, from pageInfo: PageInfo) -> PageInfo? {
+		return pageInfoRetriever.previousPageInfo(for: completionResults, from: pageInfo)
 	}
 	
 	/* **********************
@@ -128,6 +134,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */, Bri
 	   ********************** */
 	
 	public func onContext_delete(object: FetchedObject) {
+		if let deletionDateProperty {object.setValue(Date(), forKey: deletionDateProperty.name)}
+		else                        {context.delete(object)}
 	}
 	
 	/* ***************
@@ -136,9 +144,9 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */, Bri
 	
 	private let localDbRequest: Bridge.LocalDb.DbRequest
 	
+	private let deletionDateProperty: NSAttributeDescription?
 	private let apiOrderProperty: NSAttributeDescription?
 	private let apiOrderDelta: Int /* Must be > 0 */
-	private let deletionDateProperty: NSAttributeDescription?
 	
 }
 struct NotImplemented : Error {}
