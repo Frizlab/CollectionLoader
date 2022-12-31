@@ -82,11 +82,11 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   ************************* */
 	
 	public func onContext_numberOfObjects() -> Int {
-		return 0
+		return resultsController.fetchedObjects!.count
 	}
 	
 	public func onContext_object(at index: Int) -> FetchedObject {
-		preconditionFailure()
+		return resultsController.fetchedObjects![index]
 	}
 	
 	/* *********************************************
