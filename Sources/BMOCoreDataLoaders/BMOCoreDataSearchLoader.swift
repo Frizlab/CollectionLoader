@@ -26,13 +26,14 @@ import CollectionLoader
 public struct BMOCoreDataSearchLoader<Bridge : BridgeProtocol, FetchedObject : NSManagedObject, PageInfoRetriever : PageInfoRetrieverProtocol> : CollectionLoaderHelperProtocol
 where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		Bridge.LocalDb.DbContext == NSManagedObjectContext,
-		PageInfoRetriever.CompletionResults == LocalDbChanges<NSManagedObject, Bridge.Metadata>
+		PageInfoRetriever.CompletionResults == LocalDbChanges<NSManagedObject, Bridge.Metadata>?
 {
 	
-	public typealias LoadingOperation = Bridge.RemoteDb.RemoteOperation
+	public typealias LoadingOperation = RequestOperation<Bridge>
 	
 	public typealias PageInfo = PageInfoRetriever.PageInfo
-	public typealias PreCompletionResults = LocalDbChanges<NSManagedObject, Bridge.Metadata>
+	public typealias CompletionResults = PageInfoRetriever.CompletionResults
+	public typealias PreCompletionResults = LocalDbChanges<FetchedObject, Bridge.Metadata>
 	
 	public var bridge: Bridge
 	public var pageInfoRetriever: PageInfoRetriever
@@ -93,13 +94,12 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   MARK: Get Objects from Pre-Completion Results
 	   ********************************************* */
 	
-	public func onContext_numberOfObjects(from preCompletionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>) -> Int {
-		return preCompletionResults.importedObjects.filter{ $0.object is FetchedObject }.count
+	public func onContext_numberOfObjects(from preCompletionResults: LocalDbChanges<FetchedObject, Bridge.Metadata>) -> Int {
+		return preCompletionResults.importedObjects.count
 	}
 	
-#warning("TODO: Find a way to avoid reprocessing the imported objects to remove objects of the incorrect type…")
-	public func onContext_object(at index: Int, from preCompletionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>) -> FetchedObject {
-		return preCompletionResults.importedObjects.compactMap{ $0.object as? FetchedObject }[index]
+	public func onContext_object(at index: Int, from preCompletionResults: LocalDbChanges<FetchedObject, Bridge.Metadata>) -> FetchedObject {
+		return preCompletionResults.importedObjects[index].object
 	}
 	
 	/* ****************
@@ -111,7 +111,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	}
 	
 	public func results(from finishedLoadingOperation: LoadingOperation) -> Result<CompletionResults, Error> {
-		return .failure(NotImplemented())
+		return finishedLoadingOperation.result.map{ $0.dbChanges }
 	}
 	
 	/* *************************
@@ -122,11 +122,11 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		return pageInfoRetriever.initialPageInfo()
 	}
 	
-	public func nextPageInfo(for completionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>, from pageInfo: PageInfo) -> PageInfo? {
+	public func nextPageInfo(for completionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>?, from pageInfo: PageInfo) -> PageInfo? {
 		return pageInfoRetriever.nextPageInfo(for: completionResults, from: pageInfo)
 	}
 	
-	public func previousPageInfo(for completionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>, from pageInfo: PageInfo) -> PageInfo? {
+	public func previousPageInfo(for completionResults: LocalDbChanges<NSManagedObject, Bridge.Metadata>?, from pageInfo: PageInfo) -> PageInfo? {
 		return pageInfoRetriever.previousPageInfo(for: completionResults, from: pageInfo)
 	}
 	
