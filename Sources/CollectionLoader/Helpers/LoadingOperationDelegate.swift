@@ -17,23 +17,31 @@ import Foundation
 
 
 
-public protocol LoadingOperationDelegate<PreCompletionResults> {
-	
-	associatedtype PreCompletionResults
+public struct LoadingOperationDelegate<PreCompletionResults> {
 	
 	/* BMO: onContext_localToRemote_willGoRemote */
-	func onContext_remoteOperationWillStart(cancellationCheck throwIfCancelled: () throws -> Void) throws
+	public var onContext_remoteOperationWillStart: (() throws -> Void) throws -> Void
 	
 	/* BMO: onContext_remoteToLocal_willImportRemoteResults */
 	/**
 	 If this returns `false`, the remote operation results should _not_ be imported, but the loading operation should finish successfully.
 	 If this throws, the import should not be attempted and the loading operation should fail. */
-	func onContext_operationWillImportResults(cancellationCheck throwIfCancelled: () throws -> Void) throws -> Bool
+	public var onContext_operationWillImportResults: (() throws -> Void) throws -> Bool
 	
 	/* BMO: onContext_remoteToLocal_didImportRemoteResults */
 	/**
 	 This must be called just after the import has finished, while still on the db context.
 	 If this throws, the loading operation should fail. */
-	func onContext_operationDidFinishImport(results: PreCompletionResults, cancellationCheck throwIfCancelled: () throws -> Void) throws
+	public var onContext_operationDidFinishImport: (PreCompletionResults, () throws -> Void) throws -> Void
+	
+	public init(
+		willStart: @escaping (() throws -> Void) throws -> Void = { _ in },
+		willImport: @escaping (() throws -> Void) throws -> Bool = { _ in true },
+		didFinishImport: @escaping (PreCompletionResults, () throws -> Void) throws -> Void = { _, _ in }
+	) {
+		self.onContext_remoteOperationWillStart = willStart
+		self.onContext_operationWillImportResults = willImport
+		self.onContext_operationDidFinishImport = didFinishImport
+	}
 	
 }

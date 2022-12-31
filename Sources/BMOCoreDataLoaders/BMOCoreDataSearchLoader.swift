@@ -105,7 +105,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   MARK: Load Pages
 	   **************** */
 	
-	public func operationForLoading(pageInfo: PageInfo, delegate: any LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
+	public func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
 		throw NotImplemented()
 	}
 	

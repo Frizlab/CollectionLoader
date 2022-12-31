@@ -20,7 +20,7 @@ import Foundation
 extension PageLoadDescription.Reason {
 	
 	@MainActor
-	func operationLoadingDelegate<Helper : CollectionLoaderHelperProtocol>(with helper: Helper, pageLoadDescription: PageLoadDescription, delegate: (any CollectionLoaderDelegate<Helper>)?) -> some LoadingOperationDelegate<Helper.PreCompletionResults>
+	func operationLoadingDelegate<Helper : CollectionLoaderHelperProtocol>(with helper: Helper, pageLoadDescription: PageLoadDescription, delegate: (any CollectionLoaderDelegate<Helper>)?) -> LoadingOperationDelegate<Helper.PreCompletionResults>
 	where Helper.PageInfo == PageInfo, Helper.PageInfo == PageInfo {
 		switch self {
 			case .initialPage:             return Self.operationLoadingDelegateForInitialPage(       with: helper, pageLoadDescription: pageLoadDescription, delegate: delegate)
@@ -30,10 +30,10 @@ extension PageLoadDescription.Reason {
 	}
 	
 	@MainActor
-	private static func operationLoadingDelegateForInitialPage<Helper : CollectionLoaderHelperProtocol>(with helper: Helper, pageLoadDescription: PageLoadDescription, delegate: (any CollectionLoaderDelegate<Helper>)?) -> HandlerLoadingOperationDelegate<Helper.PreCompletionResults>
+	private static func operationLoadingDelegateForInitialPage<Helper : CollectionLoaderHelperProtocol>(with helper: Helper, pageLoadDescription: PageLoadDescription, delegate: (any CollectionLoaderDelegate<Helper>)?) -> LoadingOperationDelegate<Helper.PreCompletionResults>
 	where Helper.PageInfo == PageInfo, Helper.PageInfo == PageInfo {
 		var objectsBeforeImport = Set<Helper.FetchedObject>()
-		return HandlerLoadingOperationDelegate<Helper.PreCompletionResults>(
+		return LoadingOperationDelegate<Helper.PreCompletionResults>(
 			willImport: { throwIfCancelled in
 				let n = helper.onContext_numberOfObjects()
 				for i in 0..<n {
@@ -60,9 +60,9 @@ extension PageLoadDescription.Reason {
 	}
 	
 	@MainActor
-	private static func operationLoadingDelegateForNextOrPreviousPage<Helper : CollectionLoaderHelperProtocol>(with helper: Helper, pageLoadDescription: PageLoadDescription, delegate: (any CollectionLoaderDelegate<Helper>)?) -> HandlerLoadingOperationDelegate<Helper.PreCompletionResults>
+	private static func operationLoadingDelegateForNextOrPreviousPage<Helper : CollectionLoaderHelperProtocol>(with helper: Helper, pageLoadDescription: PageLoadDescription, delegate: (any CollectionLoaderDelegate<Helper>)?) -> LoadingOperationDelegate<Helper.PreCompletionResults>
 	where Helper.PageInfo == PageInfo, Helper.PageInfo == PageInfo {
-		return HandlerLoadingOperationDelegate<Helper.PreCompletionResults>(
+		return LoadingOperationDelegate<Helper.PreCompletionResults>(
 			didFinishImport: { results, throwIfCancelled in
 				try Self.callWillFinishLoading(on: delegate, pageLoadDescription: pageLoadDescription, results: results, cancellationCheck: throwIfCancelled)
 			}
@@ -70,10 +70,10 @@ extension PageLoadDescription.Reason {
 	}
 	
 	@MainActor
-	private static func operationLoadingDelegateForSync<Helper : CollectionLoaderHelperProtocol>(of range: ClosedRange<Int>, with helper: Helper, pageLoadDescription: PageLoadDescription, delegate: (any CollectionLoaderDelegate<Helper>)?) -> HandlerLoadingOperationDelegate<Helper.PreCompletionResults>
+	private static func operationLoadingDelegateForSync<Helper : CollectionLoaderHelperProtocol>(of range: ClosedRange<Int>, with helper: Helper, pageLoadDescription: PageLoadDescription, delegate: (any CollectionLoaderDelegate<Helper>)?) -> LoadingOperationDelegate<Helper.PreCompletionResults>
 	where Helper.PageInfo == PageInfo, Helper.PageInfo == PageInfo {
 		var objectsBeforeStart = [Helper.FetchedObject]()
-		return HandlerLoadingOperationDelegate<Helper.PreCompletionResults>(
+		return LoadingOperationDelegate<Helper.PreCompletionResults>(
 			willStart: { throwIfCancelled in
 				let n = helper.onContext_numberOfObjects()
 				guard n > 0 else {return}

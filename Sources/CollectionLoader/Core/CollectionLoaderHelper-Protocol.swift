@@ -62,7 +62,7 @@ public protocol CollectionLoaderHelperProtocol : PageInfoRetrieverProtocol {
 	 
 	 - Important: A successful operation **should** have called all of the methods of the given delegate at the appropriate times.
 	 Indeed, most of the work of the ``CollectionLoader`` happens inside these calls. */
-	func operationForLoading(pageInfo: PageInfo, delegate: any LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation
+	func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation
 	func results(from finishedLoadingOperation: LoadingOperation) -> Result<CompletionResults, Error>
 	
 	/* **********************
