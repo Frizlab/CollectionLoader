@@ -51,7 +51,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		listElementEntity: NSEntityDescription, listProperty: NSRelationshipDescription,
 		apiOrderProperty: NSAttributeDescription, apiOrderDelta: Int = 1,
 		additionalFetchRequestPredicate: NSPredicate? = nil,
-		fetchRequestToBridgeRequest: (NSFetchRequest<NSManagedObject>) -> Bridge.LocalDb.DbRequest
+		fetchRequestToBridgeRequest: (NSFetchRequest<NSManagedObject>) -> Bridge.LocalDb.DbRequest,
+		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo
 	) throws {
 		let fetchRequest = NSFetchRequest<NSManagedObject>()
 		fetchRequest.entity = listElementEntity
@@ -61,7 +62,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 			listElementFetchRequest: fetchRequest,
 			listProperty: listProperty, apiOrderProperty: apiOrderProperty, apiOrderDelta: apiOrderDelta,
 			additionalFetchRequestPredicate: additionalFetchRequestPredicate,
-			fetchRequestToBridgeRequest: fetchRequestToBridgeRequest
+			fetchRequestToBridgeRequest: fetchRequestToBridgeRequest,
+			pageInfoToRequestUserInfo: pageInfoToRequestUserInfo
 		)
 	}
 	
@@ -72,7 +74,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		listElementFetchRequest: NSFetchRequest<ListElementObject>, listProperty: NSRelationshipDescription,
 		apiOrderProperty: NSAttributeDescription, apiOrderDelta: Int = 1,
 		additionalFetchRequestPredicate: NSPredicate? = nil,
-		fetchRequestToBridgeRequest: (NSFetchRequest<ListElementObject>) -> Bridge.LocalDb.DbRequest
+		fetchRequestToBridgeRequest: (NSFetchRequest<ListElementObject>) -> Bridge.LocalDb.DbRequest,
+		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo
 	) throws {
 		assert(apiOrderDelta > 0)
 		assert(listProperty.isOrdered)
@@ -80,6 +83,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		self.bridge = bridge
 		self.localDb = localDb
 		self.pageInfoRetriever = pageInfoRetriever
+		self.pageInfoToRequestUserInfo = pageInfoToRequestUserInfo
 		
 		self.localDbRequest = fetchRequestToBridgeRequest(listElementFetchRequest)
 		
@@ -90,7 +94,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		
 		var listObjectID: NSManagedObjectID?
 		try localDb.context.performAndWaitRW{ listObjectID = try localDb.context.fetch(listElementFetchRequest).first?.objectID }
-		listElementObjectID = listObjectID
+		self.listElementObjectID = listObjectID
 		
 		let fetchedResultsControllerFetchRequest = NSFetchRequest<FetchedObject>()
 		fetchedResultsControllerFetchRequest.entity = listProperty.destinationEntity!
@@ -186,8 +190,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   ********************** */
 	
 	public func onContext_delete(object: FetchedObject) {
-		if let deletionDateProperty {object.setValue(Date(), forKey: deletionDateProperty.name)}
-		else                        {localDb.context.delete(object)}
+		object.setValue(nil, forKey: listProperty.inverseRelationship!.name)
 	}
 	
 	/* ***************
