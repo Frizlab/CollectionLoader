@@ -149,15 +149,38 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   **************** */
 	
 	public func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
-#warning("TODO: apiOrderProperty (requires the start offset of the page info…)")
 		let helper = BMORequestHelperForLoader<FetchedObject, Bridge.Metadata>(
 			loadingOperationDelegate: delegate,
 			importChangesProcessing: { changes, throwIfCancelled in
-				/* We only want objects of the correct type in the pre-completion results. */
-				try changes.importedObjects.compactMap{
-					try throwIfCancelled()
-					return $0.object as? FetchedObject
+				if changes.importedObjects.count > 1 {
+					if #available(tvOS 10.0, iOS 10.0, watchOS 3.0, *) {
+//						BMOConfig.oslog.flatMap{ os_log("Got more than one root element as a result of a request for a list element collection loader helper. Taking first. Got: %@", log: $0, type: .info, importResults.rootObjectsAndRelationships) }
+					}
 				}
+				guard let root = changes.importedObjects.first?.object else {
+					return []
+				}
+				
+				assert(!root.objectID.isTemporaryID)
+				
+				if let curRootObjectID = self.listElementObjectID, curRootObjectID != root.objectID {
+					if #available(tvOS 10.0, iOS 10.0, watchOS 3.0, *) {
+//						BMOConfig.oslog.flatMap{ os_log("Got different root object id from a result of a request for a list element collection loader helper than previous one. Replacing with new one. Previous: %{public}@; retrieved: %{public}@", log: $0, type: .info, curRootObjectID, root.objectID) }
+					}
+				}
+				self.listElementObjectID = root.objectID
+				
+				let apiOrderPropertyName = self.apiOrderProperty.name
+				let collection = (root.value(forKey: self.listProperty.name) as! NSOrderedSet).array as! [FetchedObject]
+				for (i, elt) in collection.enumerated() {
+					try throwIfCancelled()
+					let expectedOrderValue = i * self.apiOrderDelta
+					if elt.value(forKey: apiOrderPropertyName) as! Int != expectedOrderValue {
+						elt.setValue(expectedOrderValue, forKey: apiOrderPropertyName)
+					}
+				}
+				
+				return collection
 			}
 		)
 		let helpers = RequestHelperCollectionForOldRuntimes(helper)
