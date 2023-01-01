@@ -19,7 +19,7 @@ import Foundation
 
 public struct PageLoadDescription<PageInfo : PageInfoProtocol> {
 	
-	public enum Reason {
+	public enum Reason : Equatable {
 		
 		case initialPage
 		case nextPage
