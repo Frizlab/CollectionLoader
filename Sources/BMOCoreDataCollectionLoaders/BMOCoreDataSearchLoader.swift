@@ -42,7 +42,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	
 	public let pageInfoToRequestUserInfo: (PageInfo) -> Bridge.RequestUserInfo
 	
-	init(
+	public init(
 		bridge: Bridge,
 		localDb: Bridge.LocalDb,
 		pageInfoRetriever: PageInfoRetriever,
