@@ -146,20 +146,20 @@ private extension CollectionLoader {
 	
 	private static func callWillStartLoading(on delegate: (any CollectionLoaderDelegate<Helper>)?, pageLoadDescription: CLPageLoadDescription) {
 		if let delegate {
-			callWillStartLoading(on: delegate, pageLoadDescription: pageLoadDescription)
+			callWillStartLoading(onNonOptional: delegate, pageLoadDescription: pageLoadDescription)
 		}
 	}
-	private static func callWillStartLoading<Delegate : CollectionLoaderDelegate>(on delegate: Delegate, pageLoadDescription: CLPageLoadDescription)
+	private static func callWillStartLoading<Delegate : CollectionLoaderDelegate>(onNonOptional delegate: Delegate, pageLoadDescription: CLPageLoadDescription)
 	where Delegate.CollectionLoaderHelper == Helper {
 		delegate.willStartLoading(pageLoadDescription: pageLoadDescription)
 	}
 	
 	private static func callDidFinishLoading(on delegate: (any CollectionLoaderDelegate<Helper>)?, pageLoadDescription: CLPageLoadDescription, results: Result<Helper.CompletionResults, Error>) {
 		if let delegate {
-			callDidFinishLoading(on: delegate, pageLoadDescription: pageLoadDescription, results: results)
+			callDidFinishLoading(onNonOptional: delegate, pageLoadDescription: pageLoadDescription, results: results)
 		}
 	}
-	private static func callDidFinishLoading<Delegate : CollectionLoaderDelegate>(on delegate: Delegate, pageLoadDescription: CLPageLoadDescription, results: Result<Helper.CompletionResults, Error>)
+	private static func callDidFinishLoading<Delegate : CollectionLoaderDelegate>(onNonOptional delegate: Delegate, pageLoadDescription: CLPageLoadDescription, results: Result<Helper.CompletionResults, Error>)
 	where Delegate.CollectionLoaderHelper == Helper {
 		delegate.didFinishLoading(pageLoadDescription: pageLoadDescription, results: results)
 	}

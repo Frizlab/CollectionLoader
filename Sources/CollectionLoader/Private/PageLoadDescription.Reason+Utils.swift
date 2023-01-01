@@ -100,20 +100,21 @@ extension PageLoadDescription.Reason {
 extension PageLoadDescription.Reason {
 	
 	static func callCanDelete<Helper : CollectionLoaderHelperProtocol>(on delegate: (any CollectionLoaderDelegate<Helper>)?, object: Helper.FetchedObject) -> Bool {
-		if let delegate {return callCanDelete(on: delegate, object: object)}
+		if let delegate {return callCanDelete(onNonOptional: delegate, object: object)}
 		else            {return true}
 	}
-	static func callCanDelete<Delegate : CollectionLoaderDelegate, Helper : CollectionLoaderHelperProtocol>(on delegate: Delegate, object: Helper.FetchedObject) -> Bool
+	static func callCanDelete<Delegate : CollectionLoaderDelegate, Helper : CollectionLoaderHelperProtocol>(onNonOptional delegate: Delegate, object: Helper.FetchedObject) -> Bool
 	where Delegate.CollectionLoaderHelper == Helper {
 		return delegate.onContext_canDelete(object: object)
 	}
 	
-	static func callWillFinishLoading<Helper : CollectionLoaderHelperProtocol>(on delegate: (any CollectionLoaderDelegate<Helper>)?, pageLoadDescription: PageLoadDescription, results: Helper.PreCompletionResults, cancellationCheck throwIfCancelled: () throws -> Void) throws {
+	static func callWillFinishLoading<Helper : CollectionLoaderHelperProtocol>(on delegate: (any CollectionLoaderDelegate<Helper>)?, pageLoadDescription: PageLoadDescription, results: Helper.PreCompletionResults, cancellationCheck throwIfCancelled: () throws -> Void) throws
+	where Helper.PageInfo == PageInfo {
 		if let delegate {
-			try callWillFinishLoading(on: delegate, pageLoadDescription: pageLoadDescription, results: results, cancellationCheck: throwIfCancelled)
+			try callWillFinishLoading(onNonOptional: delegate, pageLoadDescription: pageLoadDescription, results: results, cancellationCheck: throwIfCancelled)
 		}
 	}
-	static func callWillFinishLoading<Delegate : CollectionLoaderDelegate, Helper : CollectionLoaderHelperProtocol>(on delegate: Delegate, pageLoadDescription: PageLoadDescription, results: Helper.PreCompletionResults, cancellationCheck throwIfCancelled: () throws -> Void) throws
+	static func callWillFinishLoading<Delegate : CollectionLoaderDelegate, Helper : CollectionLoaderHelperProtocol>(onNonOptional delegate: Delegate, pageLoadDescription: PageLoadDescription, results: Helper.PreCompletionResults, cancellationCheck throwIfCancelled: () throws -> Void) throws
 	where Delegate.CollectionLoaderHelper == Helper, Delegate.PageInfo == PageInfo {
 		try delegate.onContext_willFinishLoading(pageLoadDescription: pageLoadDescription, results: results, cancellationCheck: throwIfCancelled)
 	}
