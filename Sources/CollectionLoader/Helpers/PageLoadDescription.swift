@@ -17,7 +17,7 @@ import Foundation
 
 
 
-public struct PageLoadDescription<PageInfo : PageInfoProtocol> {
+public struct PageLoadDescription<PageInfo : PageInfoProtocol> : Equatable {
 	
 	public enum Reason : Equatable {
 		

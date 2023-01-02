@@ -26,4 +26,13 @@ public enum ConcurrentLoadBehavior {
 	/** Cancel all the queue, including the current one and add new loading to the queue. */
 	case cancelAllOther
 	
+	/** Skip this load if there is one already queued. */
+	case skip
+	/** Skip this load if there is one exactly the same reason queued. */
+	case skipSame
+	/** Skip this load if there is one for the same reason queued. */
+	case skipSameReason
+	/** Skip this load if there is one for the same page info queued. */
+	case skipSamePageInfo
+	
 }

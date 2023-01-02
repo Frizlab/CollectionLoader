@@ -48,6 +48,18 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 		load(pageLoadDescription: pld, concurrentLoadBehavior: .cancelAllOther)
 	}
 	
+	public func loadNextPage() {
+		guard let nextPageInfo else {return}
+		let pld = CLPageLoadDescription(loadedPage: nextPageInfo, loadingReason: .nextPage)
+		load(pageLoadDescription: pld, concurrentLoadBehavior: .skipSameReason)
+	}
+	
+	public func loadPreviousPage() {
+		guard let previousPageInfo else {return}
+		let pld = CLPageLoadDescription(loadedPage: previousPageInfo, loadingReason: .previousPage)
+		load(pageLoadDescription: pld, concurrentLoadBehavior: .skipSameReason)
+	}
+	
 	/**
 	 Only one page load at a time is allowed.
 	 All of the loading operations are launched in a queue with a maximum concurrent operation count set to 1. */
@@ -55,6 +67,17 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 		/* We capture the delegate and the helper so we always get the same one for all the callbacks. */
 		let helper = helper
 		let delegate = delegate
+		
+		switch concurrentLoadBehavior {
+			case .queue:          (/*nop*/)
+			case .cancelAllOther: currentOperation?.cancel(); fallthrough
+			case .replaceQueue:   pendingOperations.forEach{ $0.cancel() }
+				
+			case .skip:             guard  pendingOperations.isEmpty else {return}
+			case .skipSame:         guard !pendingOperations.contains(where: { $0.pageLoadDescription == pageLoadDescription }) else {return}
+			case .skipSameReason:   guard !pendingOperations.contains(where: { $0.pageLoadDescription.loadingReason == pageLoadDescription.loadingReason }) else {return}
+			case .skipSamePageInfo: guard !pendingOperations.contains(where: { $0.pageLoadDescription.loadedPage == pageLoadDescription.loadedPage }) else {return}
+		}
 		
 		let operation: Helper.LoadingOperation
 		let loadingDelegate = pageLoadDescription.loadingReason.operationLoadingDelegate(with: helper, pageLoadDescription: pageLoadDescription, delegate: delegate)
@@ -110,13 +133,7 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 			self.currentOperation = nil
 		}
 		
-		switch concurrentLoadBehavior {
-			case .queue:          (/*nop*/)
-			case .cancelAllOther: currentOperation?.cancel(); fallthrough
-			case .replaceQueue:   pendingOperations.forEach{ $0.cancel() }
-		}
-		
-		let loadingOperations = LoadingOperations(prestart: prestart, loading: operation, completion: completion)
+		let loadingOperations = LoadingOperations(prestart: prestart, loading: operation, completion: completion, pageLoadDescription: pageLoadDescription)
 		loadingOperations.setupDependencies(previousOperations: pendingOperations.last ?? currentOperation)
 		loadingOperations.prestart.addDependencies(customOperationDependencies)
 		pendingOperations.append(loadingOperations)
@@ -139,6 +156,8 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 		let prestart:   Operation
 		let loading:    Operation
 		let completion: Operation
+		
+		let pageLoadDescription: CLPageLoadDescription
 		
 		func setupDependencies(previousOperations: LoadingOperations?) {
 			if let previousOperations {

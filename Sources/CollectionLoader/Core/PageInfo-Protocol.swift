@@ -17,5 +17,5 @@ import Foundation
 
 
 
-public protocol PageInfoProtocol {
+public protocol PageInfoProtocol : Equatable {
 }
