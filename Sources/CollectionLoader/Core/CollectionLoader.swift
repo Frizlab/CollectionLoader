@@ -73,10 +73,10 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 			case .cancelAllOther: currentOperation?.cancel(); fallthrough
 			case .replaceQueue:   pendingOperations.forEach{ $0.cancel() }
 				
-			case .skip:             guard  pendingOperations.isEmpty else {return}
-			case .skipSame:         guard !pendingOperations.contains(where: { $0.pageLoadDescription == pageLoadDescription }) else {return}
-			case .skipSameReason:   guard !pendingOperations.contains(where: { $0.pageLoadDescription.loadingReason == pageLoadDescription.loadingReason }) else {return}
-			case .skipSamePageInfo: guard !pendingOperations.contains(where: { $0.pageLoadDescription.loadedPage == pageLoadDescription.loadedPage }) else {return}
+			case .skip:             guard  ([currentOperation].compactMap{ $0 } + pendingOperations).isEmpty else {return}
+			case .skipSame:         guard !([currentOperation].compactMap{ $0 } + pendingOperations).contains(where: { $0.pageLoadDescription == pageLoadDescription }) else {return}
+			case .skipSameReason:   guard !([currentOperation].compactMap{ $0 } + pendingOperations).contains(where: { $0.pageLoadDescription.loadingReason == pageLoadDescription.loadingReason }) else {return}
+			case .skipSamePageInfo: guard !([currentOperation].compactMap{ $0 } + pendingOperations).contains(where: { $0.pageLoadDescription.loadedPage == pageLoadDescription.loadedPage }) else {return}
 		}
 		
 		let operation: Helper.LoadingOperation
