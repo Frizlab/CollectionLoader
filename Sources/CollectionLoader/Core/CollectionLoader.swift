@@ -17,6 +17,17 @@ import Foundation
 
 
 
+/**
+ Load a collection with a helper.
+ 
+ The collection loader does not actually load anything: the operation returned by the collection loader helper do.
+ 
+ The collection loader will simply define a context in which loading pages is easier.
+ In particular, it will properly “erase” the object not in the page when loading the first page.
+ A “sync” algorithm also exists (not implemented) to load a collection range and have the proper objects removed automatically if possible.
+ 
+ - Note: A loading collection loader **and its delegate** are strongly retained while a page load is in progress.
+ Cancelling all loadings is possible. */
 @MainActor
 public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 	
@@ -31,6 +42,10 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 	
 	public private(set) var nextPageInfo:     PageInfo?
 	public private(set) var previousPageInfo: PageInfo?
+	
+	public var currentPageLoad: CLPageLoadDescription? {
+		currentOperation?.pageLoadDescription
+	}
 	
 	public weak var delegate: (any CollectionLoaderDelegate<Helper>)?
 	
@@ -84,53 +99,49 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 		do    {operation = try helper.operationForLoading(pageInfo: pageLoadDescription.loadedPage, delegate: loadingDelegate)}
 		catch {Self.callDidFinishLoading(on: delegate, pageLoadDescription: pageLoadDescription, results: .failure(error)); return}
 		
-		/* We capture the delegate to always get the same one for all the callbacks. */
-		let prestart = BlockOperation{ [weak self] in
+		/* Yes, self is strongly captured, on purpose. */
+		let prestart = BlockOperation{
 			/* On main queue (and thus on main actor/thread). */
 			/* Let’s call the delegate first. */
 			Self.callWillStartLoading(on: delegate, pageLoadDescription: pageLoadDescription)
 			
 			/* Then we remove ourselves from the pending operations and put ourselves as the current operation instead.
 			 * By construction, our operation is the first one of the pending operations. */
-			guard let self else {return}
 			assert(self.currentOperation == nil)
 			self.currentOperation = self.pendingOperations.removeFirst() /* Crashes if pendingOperations is empty, which is what we want. */
 		}
-		/* We capture the delegate to always get the same one for all the callbacks. */
-		let completion = BlockOperation{ [weak self] in
+		/* Yes, self is strongly captured, on purpose. */
+		let completion = BlockOperation{
 			/* On main queue (and thus on main actor/thread). */
 			/* First, we’ll check for the previous/next page info depending on the loading reason. */
 			let loadingOperationResults = helper.results(from: operation)
-			if let self {
-				switch pageLoadDescription.loadingReason {
-					case .initialPage:
-						/* We set both the previous and next page. */
-						if let loadingOperationSuccess = try? loadingOperationResults.get() {
-							self.nextPageInfo     = helper.nextPageInfo(    for: loadingOperationSuccess, from: pageLoadDescription.loadedPage)
-							self.previousPageInfo = helper.previousPageInfo(for: loadingOperationSuccess, from: pageLoadDescription.loadedPage)
-						}
-						
-					case .nextPage:
-						if let loadingOperationSuccess = try? loadingOperationResults.get() {
-							self.nextPageInfo = helper.nextPageInfo(for: loadingOperationSuccess, from: pageLoadDescription.loadedPage)
-						}
-						
-					case .previousPage:
-						if let loadingOperationSuccess = try? loadingOperationResults.get() {
-							self.previousPageInfo = helper.previousPageInfo(for: loadingOperationSuccess, from: pageLoadDescription.loadedPage)
-						}
-						
-					case .sync:
-						(/*nop*/)
-				}
+			switch pageLoadDescription.loadingReason {
+				case .initialPage:
+					/* We set both the previous and next page. */
+					if let loadingOperationSuccess = try? loadingOperationResults.get() {
+						self.nextPageInfo     = helper.nextPageInfo(    for: loadingOperationSuccess, from: pageLoadDescription.loadedPage)
+						self.previousPageInfo = helper.previousPageInfo(for: loadingOperationSuccess, from: pageLoadDescription.loadedPage)
+					}
+					
+				case .nextPage:
+					if let loadingOperationSuccess = try? loadingOperationResults.get() {
+						self.nextPageInfo = helper.nextPageInfo(for: loadingOperationSuccess, from: pageLoadDescription.loadedPage)
+					}
+					
+				case .previousPage:
+					if let loadingOperationSuccess = try? loadingOperationResults.get() {
+						self.previousPageInfo = helper.previousPageInfo(for: loadingOperationSuccess, from: pageLoadDescription.loadedPage)
+					}
+					
+				case .sync:
+					(/*nop*/)
 			}
 			
-			/* Then let’s call the delegate. */
-			Self.callDidFinishLoading(on: delegate, pageLoadDescription: pageLoadDescription, results: loadingOperationResults)
-			
 			/* Then we remove ourselves as the current operation. */
-			guard let self else {return}
 			self.currentOperation = nil
+			
+			/* And finally, we call the delegate. */
+			Self.callDidFinishLoading(on: delegate, pageLoadDescription: pageLoadDescription, results: loadingOperationResults)
 		}
 		
 		let loadingOperations = LoadingOperations(prestart: prestart, loading: operation, completion: completion, pageLoadDescription: pageLoadDescription)
