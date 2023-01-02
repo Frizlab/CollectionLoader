@@ -75,6 +75,11 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 		load(pageLoadDescription: pld, concurrentLoadBehavior: .skipSameReason)
 	}
 	
+	public func cancelAllLoadings() {
+		currentOperation?.cancel()
+		pendingOperations.forEach{ $0.cancel() }
+	}
+	
 	/**
 	 Only one page load at a time is allowed.
 	 All of the loading operations are launched in a queue with a maximum concurrent operation count set to 1. */
