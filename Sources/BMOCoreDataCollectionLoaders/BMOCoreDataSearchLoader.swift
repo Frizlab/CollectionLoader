@@ -126,7 +126,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	}
 	
 	public func results(from finishedLoadingOperation: LoadingOperation) -> Result<CompletionResults, Error> {
-		return finishedLoadingOperation.result.map{ $0.dbChanges }
+		return finishedLoadingOperation.result.map{ $0.dbChanges }.mapError{ $0 as Error }
 	}
 	
 	/* *************************
