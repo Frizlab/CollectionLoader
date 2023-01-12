@@ -35,23 +35,23 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	public typealias CompletionResults = PageInfoRetriever.CompletionResults
 	public typealias PreCompletionResults = [FetchedObject]
 	
-	public let bridge: Bridge
-	public let localDb: Bridge.LocalDb
+	public let api: CoreDataAPI<Bridge>
+	public let apiSettings: CoreDataAPI<Bridge>.Settings
 	public let pageInfoRetriever: PageInfoRetriever
 	public let resultsController: NSFetchedResultsController<FetchedObject>
 	
 	public let pageInfoToRequestUserInfo: (PageInfo) -> Bridge.RequestUserInfo
 	
 	public init(
-		bridge: Bridge,
-		localDb: Bridge.LocalDb,
+		api: CoreDataAPI<Bridge>,
 		pageInfoRetriever: PageInfoRetriever,
 		fetchRequest: NSFetchRequest<FetchedObject>,
 		deletionDateProperty: NSAttributeDescription? = nil,
 		apiOrderProperty: NSAttributeDescription? = nil,
 		apiOrderDelta: Int = 1,
 		fetchRequestToBridgeRequest: (NSFetchRequest<FetchedObject>) -> Bridge.LocalDb.DbRequest,
-		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo
+		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo,
+		customApiSettings: CoreDataAPI<Bridge>.Settings? = nil
 	) throws {
 		assert(apiOrderDelta > 0)
 		assert(deletionDateProperty.flatMap{ ["NSDate", "Date"].contains($0.attributeValueClassName) } ?? true)
@@ -66,12 +66,12 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 			else                                                       {controllerFetchRequest.predicate = deletionPredicate}
 		}
 		
-		self.bridge = bridge
-		self.localDb = localDb
+		self.api = api
+		self.apiSettings = customApiSettings ?? api.defaultSettings
 		self.pageInfoRetriever = pageInfoRetriever
 		self.pageInfoToRequestUserInfo = pageInfoToRequestUserInfo
 		self.localDbRequest = fetchRequestToBridgeRequest(fetchRequest)
-		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: controllerFetchRequest, managedObjectContext: localDb.context, sectionNameKeyPath: nil, cacheName: nil)
+		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: controllerFetchRequest, managedObjectContext: api.localDb.context, sectionNameKeyPath: nil, cacheName: nil)
 		
 		self.apiOrderDelta = apiOrderDelta
 		self.apiOrderProperty = apiOrderProperty
@@ -121,8 +121,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 			}
 		)
 		let helpers = RequestHelperCollectionForOldRuntimes(helper)
-		let request = Request(localDb: localDb, localRequest: localDbRequest, remoteUserInfo: pageInfoToRequestUserInfo(pageInfo))
-		return RequestOperation(bridge: bridge, request: request, additionalHelpers: helpers, remoteOperationQueue: OperationQueue(), computeOperationQueue: OperationQueue())
+		let request = Request(localDb: api.localDb, localRequest: localDbRequest, remoteUserInfo: pageInfoToRequestUserInfo(pageInfo))
+		return RequestOperation(bridge: api.bridge, request: request, additionalHelpers: helpers, remoteOperationQueue: apiSettings.remoteOperationQueue, computeOperationQueue: apiSettings.computeOperationQueue)
 	}
 	
 	public func results(from finishedLoadingOperation: LoadingOperation) -> Result<CompletionResults, Error> {
@@ -151,7 +151,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	
 	public func onContext_delete(object: FetchedObject) {
 		if let deletionDateProperty {object.setValue(Date(), forKey: deletionDateProperty.name)}
-		else                        {localDb.context.delete(object)}
+		else                        {api.localDb.context.delete(object)}
 	}
 	
 	/* ***************

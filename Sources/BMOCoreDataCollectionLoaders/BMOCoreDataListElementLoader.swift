@@ -35,8 +35,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	public typealias CompletionResults = PageInfoRetriever.CompletionResults
 	public typealias PreCompletionResults = [FetchedObject]
 	
-	public let bridge: Bridge
-	public let localDb: Bridge.LocalDb
+	public let api: CoreDataAPI<Bridge>
+	public let apiSettings: CoreDataAPI<Bridge>.Settings
 	public let pageInfoRetriever: PageInfoRetriever
 	public let resultsController: NSFetchedResultsController<FetchedObject>
 	
@@ -45,47 +45,44 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	public private(set) var listElementObjectID: NSManagedObjectID?
 	
 	public convenience init(
-		bridge: Bridge,
-		localDb: Bridge.LocalDb,
+		api: CoreDataAPI<Bridge>,
 		pageInfoRetriever: PageInfoRetriever,
 		listElementEntity: NSEntityDescription, listProperty: NSRelationshipDescription,
 		apiOrderProperty: NSAttributeDescription, apiOrderDelta: Int = 1,
 		additionalFetchRequestPredicate: NSPredicate? = nil,
-		fetchRequestToBridgeRequest: (NSFetchRequest<NSManagedObject>) -> Bridge.LocalDb.DbRequest,
-		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo
+		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo,
+		customApiSettings: CoreDataAPI<Bridge>.Settings? = nil
 	) throws {
 		let fetchRequest = NSFetchRequest<NSManagedObject>()
 		fetchRequest.entity = listElementEntity
 		fetchRequest.fetchLimit = 1
 		try self.init(
-			bridge: bridge, localDb: localDb, pageInfoRetriever: pageInfoRetriever,
+			api: api, pageInfoRetriever: pageInfoRetriever,
 			listElementFetchRequest: fetchRequest,
 			listProperty: listProperty, apiOrderProperty: apiOrderProperty, apiOrderDelta: apiOrderDelta,
 			additionalFetchRequestPredicate: additionalFetchRequestPredicate,
-			fetchRequestToBridgeRequest: fetchRequestToBridgeRequest,
 			pageInfoToRequestUserInfo: pageInfoToRequestUserInfo
 		)
 	}
 	
 	public init<ListElementObject : NSManagedObject>(
-		bridge: Bridge,
-		localDb: Bridge.LocalDb,
+		api: CoreDataAPI<Bridge>,
 		pageInfoRetriever: PageInfoRetriever,
 		listElementFetchRequest: NSFetchRequest<ListElementObject>, listProperty: NSRelationshipDescription,
 		apiOrderProperty: NSAttributeDescription, apiOrderDelta: Int = 1,
 		additionalFetchRequestPredicate: NSPredicate? = nil,
-		fetchRequestToBridgeRequest: (NSFetchRequest<ListElementObject>) -> Bridge.LocalDb.DbRequest,
-		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo
+		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo,
+		customApiSettings: CoreDataAPI<Bridge>.Settings? = nil
 	) throws {
 		assert(apiOrderDelta > 0)
 		assert(listProperty.isOrdered)
 		
-		self.bridge = bridge
-		self.localDb = localDb
+		self.api = api
+		self.apiSettings = customApiSettings ?? api.defaultSettings
 		self.pageInfoRetriever = pageInfoRetriever
 		self.pageInfoToRequestUserInfo = pageInfoToRequestUserInfo
 		
-		self.localDbRequest = fetchRequestToBridgeRequest(listElementFetchRequest)
+		self.localDbRequest = apiSettings.fetchRequestToBridgeRequest(listElementFetchRequest as! NSFetchRequest<NSFetchRequestResult>, .always)
 		
 		self.listProperty = listProperty
 		
@@ -93,7 +90,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		self.apiOrderProperty = apiOrderProperty
 		
 		var listObjectID: NSManagedObjectID?
-		try localDb.context.performAndWaitRW{ listObjectID = try localDb.context.fetch(listElementFetchRequest).first?.objectID }
+		try api.localDb.context.performAndWaitRW{ listObjectID = try api.localDb.context.fetch(listElementFetchRequest).first?.objectID }
 		self.listElementObjectID = listObjectID
 		
 		let fetchedResultsControllerFetchRequest = NSFetchRequest<FetchedObject>()
@@ -115,7 +112,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		}
 		if let additionalFetchRequestPredicate, let fPredicate = fetchedResultsControllerFetchRequest.predicate {fetchedResultsControllerFetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [fPredicate, additionalFetchRequestPredicate])}
 		else if let additionalFetchRequestPredicate                                                             {fetchedResultsControllerFetchRequest.predicate = additionalFetchRequestPredicate}
-		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: fetchedResultsControllerFetchRequest, managedObjectContext: localDb.context, sectionNameKeyPath: nil, cacheName: nil)
+		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: fetchedResultsControllerFetchRequest, managedObjectContext: api.localDb.context, sectionNameKeyPath: nil, cacheName: nil)
 		
 		try resultsController.performFetch()
 	}
@@ -184,8 +181,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 			}
 		)
 		let helpers = RequestHelperCollectionForOldRuntimes(helper)
-		let request = Request(localDb: localDb, localRequest: localDbRequest, remoteUserInfo: pageInfoToRequestUserInfo(pageInfo))
-		return RequestOperation(bridge: bridge, request: request, additionalHelpers: helpers, remoteOperationQueue: OperationQueue(), computeOperationQueue: OperationQueue())
+		let request = Request(localDb: api.localDb, localRequest: localDbRequest, remoteUserInfo: pageInfoToRequestUserInfo(pageInfo))
+		return RequestOperation(bridge: api.bridge, request: request, additionalHelpers: helpers, remoteOperationQueue: apiSettings.remoteOperationQueue, computeOperationQueue: apiSettings.computeOperationQueue)
 	}
 	
 	public func results(from finishedLoadingOperation: LoadingOperation) -> Result<CompletionResults, Error> {
