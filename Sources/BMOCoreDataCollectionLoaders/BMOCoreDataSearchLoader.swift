@@ -49,7 +49,6 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		deletionDateProperty: NSAttributeDescription? = nil,
 		apiOrderProperty: NSAttributeDescription? = nil,
 		apiOrderDelta: Int = 1,
-		fetchRequestToBridgeRequest: (NSFetchRequest<FetchedObject>) -> Bridge.LocalDb.DbRequest,
 		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo,
 		customApiSettings: CoreDataAPI<Bridge>.Settings? = nil
 	) throws {
@@ -70,7 +69,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		self.apiSettings = customApiSettings ?? api.defaultSettings
 		self.pageInfoRetriever = pageInfoRetriever
 		self.pageInfoToRequestUserInfo = pageInfoToRequestUserInfo
-		self.localDbRequest = fetchRequestToBridgeRequest(fetchRequest)
+		self.localDbRequest = apiSettings.fetchRequestToBridgeRequest(fetchRequest as! NSFetchRequest<NSFetchRequestResult>, .always)
 		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: controllerFetchRequest, managedObjectContext: api.localDb.context, sectionNameKeyPath: nil, cacheName: nil)
 		
 		self.apiOrderDelta = apiOrderDelta
