@@ -39,15 +39,15 @@ struct BMORequestHelperForLoader<FetchedObject : NSManagedObject, Metadata> : Re
 	   MARK: Request Lifecycle Part 1: Local Request to Remote Operation
 	   ***************************************************************** */
 	
-	func onContext_localToRemote_prepareRemoteConversion(cancellationCheck throwIfCancelled: () throws -> Void) throws -> Bool {
+	func onContext_localToRemote_prepareRemoteConversion(context: NSManagedObjectContext, cancellationCheck throwIfCancelled: () throws -> Void) throws -> Bool {
 		return true
 	}
 	
-	func onContext_localToRemote_willGoRemote(cancellationCheck throwIfCancelled: () throws -> Void) throws {
+	func onContext_localToRemote_willGoRemote(context: NSManagedObjectContext, cancellationCheck throwIfCancelled: () throws -> Void) throws {
 		try loadingOperationDelegate.onContext_remoteOperationWillStart(throwIfCancelled)
 	}
 	
-	func onContext_localToRemoteFailed(_ error: Error) {
+	func onContext_localToRemoteFailed(_ error: Error, context: NSManagedObjectContext) {
 	}
 	
 	/* ************************************************************
@@ -61,15 +61,19 @@ struct BMORequestHelperForLoader<FetchedObject : NSManagedObject, Metadata> : Re
 	   MARK: Request Lifecycle Part 3: Local Db Representation to Local Db
 	   ******************************************************************* */
 	
-	func onContext_remoteToLocal_willImportRemoteResults(cancellationCheck throwIfCancelled: () throws -> Void) throws -> Bool {
+	func newContextForImportingRemoteResults() -> NSManagedObjectContext?? {
+		return nil
+	}
+	
+	func onContext_remoteToLocal_willImportRemoteResults(context: NSManagedObjectContext, cancellationCheck throwIfCancelled: () throws -> Void) throws -> Bool {
 		return try loadingOperationDelegate.onContext_operationWillImportResults(throwIfCancelled)
 	}
 	
-	func onContext_remoteToLocal_didImportRemoteResults(_ importChanges: LocalDbChanges<NSManagedObject, Metadata>, cancellationCheck throwIfCancelled: () throws -> Void) throws {
+	func onContext_remoteToLocal_didImportRemoteResults(_ importChanges: LocalDbChanges<NSManagedObject, Metadata>, context: NSManagedObjectContext, cancellationCheck throwIfCancelled: () throws -> Void) throws {
 		try loadingOperationDelegate.onContext_operationDidFinishImport(importChangesProcessing(importChanges, throwIfCancelled), throwIfCancelled)
 	}
 	
-	func onContext_remoteToLocalFailed(_ error: Error) {
+	func onContext_remoteToLocalFailed(_ error: Error, context: NSManagedObjectContext) {
 	}
 	
 }
