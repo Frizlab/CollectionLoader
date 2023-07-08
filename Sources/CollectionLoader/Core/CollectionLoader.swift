@@ -90,8 +90,8 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 		
 		switch concurrentLoadBehavior {
 			case .queue:          (/*nop*/)
-			case .cancelAllOther: currentOperation?.cancel(); fallthrough
 			case .replaceQueue:   pendingOperations.forEach{ $0.cancel() }
+			case .cancelAllOther: pendingOperations.forEach{ $0.cancel() }; currentOperation?.cancel()
 				
 			case .skip:             guard  ([currentOperation].compactMap{ $0 } + pendingOperations).isEmpty else {return}
 			case .skipSame:         guard !([currentOperation].compactMap{ $0 } + pendingOperations).contains(where: { $0.pageLoadDescription == pageLoadDescription }) else {return}
