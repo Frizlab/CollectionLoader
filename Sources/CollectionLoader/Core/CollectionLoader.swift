@@ -82,7 +82,7 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 	
 	/**
 	 Only one page load at a time is allowed.
-	 All of the loading operations are launched in a queue with a maximum concurrent operation count set to 1. */
+	 When a loading operations is added to the queue, it is made dependent on the latest loading operation added. */
 	public func load(pageLoadDescription: CLPageLoadDescription, concurrentLoadBehavior: ConcurrentLoadBehavior = .queue, customOperationDependencies: [Operation] = []) {
 		/* We capture the delegate and the helper so we always get the same one for all the callbacks. */
 		let helper = helper
