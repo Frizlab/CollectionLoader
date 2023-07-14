@@ -47,11 +47,28 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 		currentOperation?.pageLoadDescription
 	}
 	
-	public weak var delegate: (any CollectionLoaderDelegate<Helper>)?
+	public weak var delegate: (any CollectionLoaderDelegate<Helper>)? {
+		didSet {blockDelegate = nil}
+	}
 	
 	public init(helper: Helper, operationQueue: OperationQueue = OperationQueue()) {
 		self.helper = helper
 		self.operationQueue = operationQueue
+	}
+	
+	public func setDelegateWithBlocks(
+		willStartLoading: @escaping @MainActor (CLPageLoadDescription) -> Void = { _ in },
+		didFinishLoading: @escaping @MainActor (CLPageLoadDescription, Result<Helper.CompletionResults, Error>) -> Void = { _, _ in },
+		canDelete: @escaping (Helper.FetchedObject) -> Bool = { _ in true },
+		willFinishLoading: @escaping (CLPageLoadDescription, Helper.PreCompletionResults, () throws -> Void) throws -> Void = { _, _, _ in }
+	) {
+		let newDelegate = BlockCollectionLoaderDelegate<Helper>(
+			willStartLoading: willStartLoading, didFinishLoading: didFinishLoading,
+			canDelete: canDelete, willFinishLoading: willFinishLoading
+		)
+		/* Note: The blockDelegate variable must be set AFTER setting the delegate (the delegate set resets the block delegate to `nil`). */
+		delegate = newDelegate
+		blockDelegate = newDelegate
 	}
 	
 	/**
@@ -165,6 +182,9 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 	/* No lock for either vars, because only accessed/modified on main actor. */
 	private var currentOperation: LoadingOperations?
 	private var pendingOperations = [LoadingOperations]()
+	
+	/* We keep a strong reference to the block delegate when the user sets it. */
+	private var blockDelegate: BlockCollectionLoaderDelegate<Helper>?
 	
 	@MainActor
 	private struct LoadingOperations {
