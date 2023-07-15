@@ -42,6 +42,10 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	
 	public let pageInfoToRequestUserInfo: (PageInfo) -> Bridge.RequestUserInfo
 	
+	/**
+	 Init a ``BMOCoreDataSearchLoader``.
+	 
+	 - Important: Before loading a page in a `CollectionLoader` with this loader, one **must** invoke `performFetch` on the results controller, **and assign it a delegate**. */
 	public init(
 		api: CoreDataAPI<Bridge>,
 		pageInfoRetriever: PageInfoRetriever,
@@ -51,7 +55,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		apiOrderDelta: Int = 1,
 		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo,
 		customApiSettings: CoreDataAPI<Bridge>.Settings? = nil
-	) throws {
+	) {
 		assert(apiOrderDelta > 0)
 		assert(deletionDateProperty.flatMap{ ["NSDate", "Date"].contains($0.attributeValueClassName) } ?? true)
 		
@@ -75,8 +79,6 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		self.apiOrderDelta = apiOrderDelta
 		self.apiOrderProperty = apiOrderProperty
 		self.deletionDateProperty = deletionDateProperty
-		
-		try resultsController.performFetch()
 	}
 	
 	/* *************************
@@ -108,6 +110,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   **************** */
 	
 	public func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
+		assert(resultsController.delegate != nil, "The delegate of the results controller has not been set.")
+		assert(resultsController.fetchedObjects != nil, "performFetch has not been called on the results controller.")
 #warning("TODO: apiOrderProperty (requires the start offset of the page info…)")
 		let helper = BMORequestHelperForLoader<FetchedObject, Bridge.Metadata>(
 			loadingOperationDelegate: delegate,

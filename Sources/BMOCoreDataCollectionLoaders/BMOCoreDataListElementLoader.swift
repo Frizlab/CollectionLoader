@@ -65,6 +65,10 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		)
 	}
 	
+	/**
+	 Init a ``BMOCoreDataListElementLoader``.
+	 
+	 - Important: Before loading a page in a `CollectionLoader` with this loader, one **must** invoke `performFetch` on the results controller, **and assign it a delegate**. */
 	public init<ListElementObject : NSManagedObject>(
 		api: CoreDataAPI<Bridge>,
 		pageInfoRetriever: PageInfoRetriever,
@@ -113,8 +117,6 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		if let additionalFetchRequestPredicate, let fPredicate = fetchedResultsControllerFetchRequest.predicate {fetchedResultsControllerFetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [fPredicate, additionalFetchRequestPredicate])}
 		else if let additionalFetchRequestPredicate                                                             {fetchedResultsControllerFetchRequest.predicate = additionalFetchRequestPredicate}
 		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: fetchedResultsControllerFetchRequest, managedObjectContext: api.localDb.context, sectionNameKeyPath: nil, cacheName: nil)
-		
-		try resultsController.performFetch()
 	}
 	
 	/* *************************
@@ -146,6 +148,8 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	   **************** */
 	
 	public func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
+		assert(resultsController.delegate != nil, "The delegate of the results controller has not been set.")
+		assert(resultsController.fetchedObjects != nil, "performFetch has not been called on the results controller.")
 		let helper = BMORequestHelperForLoader<FetchedObject, Bridge.Metadata>(
 			loadingOperationDelegate: delegate,
 			importChangesProcessing: { changes, throwIfCancelled in
