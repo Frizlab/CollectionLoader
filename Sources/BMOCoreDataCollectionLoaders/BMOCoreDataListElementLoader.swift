@@ -165,6 +165,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 				assert(!root.objectID.isTemporaryID)
 				
 				if let curRootObjectID = self.listElementObjectID, curRootObjectID != root.objectID {
+#warning("TODO: We detect the root object ID has changed, we set the new one just after the if, but we do not update the fetched results controller…")
 					if #available(tvOS 10.0, iOS 10.0, watchOS 3.0, *) {
 //						BMOConfig.oslog.flatMap{ os_log("Got different root object id from a result of a request for a list element collection loader helper than previous one. Replacing with new one. Previous: %{public}@; retrieved: %{public}@", log: $0, type: .info, curRootObjectID, root.objectID) }
 					}
