@@ -17,12 +17,16 @@ import Foundation
 
 
 
-extension PageLoadDescription.Reason {
+/* Note:
+ * We could even extend PageLoadReason directly instead of PageLoadDescription (we do not need any other info than the loading reason for these functions).
+ * We actually used to do this before we pulled the PageLoadReason enum out of the PageLoadDescription struct, thus making it non-generic.
+ * ’cause yeah, I lied, we also need the generics of the PageLoadDescription to be able to create the method signatures (: */
+extension PageLoadDescription {
 	
 	@MainActor
 	func operationLoadingDelegate<Helper : CollectionLoaderHelperProtocol>(with helper: Helper, pageLoadDescription: PageLoadDescription, delegate: (any CollectionLoaderDelegate<Helper>)?) -> LoadingOperationDelegate<Helper.PreCompletionResults>
 	where Helper.PageInfo == PageInfo, Helper.PageInfo == PageInfo {
-		switch self {
+		switch loadingReason {
 			case .initialPage:             return Self.operationLoadingDelegateForInitialPage(       with: helper, pageLoadDescription: pageLoadDescription, delegate: delegate)
 			case .nextPage, .previousPage: return Self.operationLoadingDelegateForNextOrPreviousPage(with: helper, pageLoadDescription: pageLoadDescription, delegate: delegate)
 			case let .sync(range: range):  return Self.operationLoadingDelegateForSync(   of: range, with: helper, pageLoadDescription: pageLoadDescription, delegate: delegate)
@@ -97,7 +101,7 @@ extension PageLoadDescription.Reason {
 
 /* Extension to “unerase” the delegate.
  * Maybe some day in a future version of Swift these will not be required. */
-extension PageLoadDescription.Reason {
+extension PageLoadDescription {
 	
 	static func callCanDelete<Helper : CollectionLoaderHelperProtocol>(on delegate: (any CollectionLoaderDelegate<Helper>)?, object: Helper.FetchedObject) -> Bool {
 		if let delegate {return callCanDelete(onNonOptional: delegate, object: object)}

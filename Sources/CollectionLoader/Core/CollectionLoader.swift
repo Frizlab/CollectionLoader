@@ -117,7 +117,7 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 		}
 		
 		let operation: Helper.LoadingOperation
-		let loadingDelegate = pageLoadDescription.loadingReason.operationLoadingDelegate(with: helper, pageLoadDescription: pageLoadDescription, delegate: delegate)
+		let loadingDelegate = pageLoadDescription.operationLoadingDelegate(with: helper, pageLoadDescription: pageLoadDescription, delegate: delegate)
 		do    {operation = try helper.operationForLoading(pageInfo: pageLoadDescription.loadedPage, delegate: loadingDelegate)}
 		catch {Self.callDidFinishLoading(on: delegate, pageLoadDescription: pageLoadDescription, results: .failure(error)); return}
 		

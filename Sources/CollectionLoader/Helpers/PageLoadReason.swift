@@ -1,5 +1,5 @@
 /*
-Copyright 2022 happn
+Copyright 2023 happn
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,14 +17,11 @@ import Foundation
 
 
 
-public struct PageLoadDescription<PageInfo : PageInfoProtocol> : Equatable {
+public enum PageLoadReason : Equatable {
 	
-	public var loadedPage: PageInfo
-	public var loadingReason: PageLoadReason
-	
-	internal init(loadedPage: PageInfo, loadingReason: PageLoadReason) {
-		self.loadedPage = loadedPage
-		self.loadingReason = loadingReason
-	}
+	case initialPage
+	case nextPage
+	case previousPage
+	case sync(range: ClosedRange<Int>)
 	
 }
