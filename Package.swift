@@ -25,7 +25,7 @@ let package = Package(
 	
 	
 	dependencies: a{
-		$0.append(.package(url: "https://github.com/Frizlab/BMO.git", .branch("dev.bmo2")))
+		$0.append(.package(url: "https://github.com/Frizlab/BMO.git", .branch("main")))
 	},
 	
 	
