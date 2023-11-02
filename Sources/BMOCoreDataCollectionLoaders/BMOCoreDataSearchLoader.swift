@@ -53,6 +53,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		deletionDateProperty: NSAttributeDescription? = nil,
 		apiOrderProperty: NSAttributeDescription? = nil,
 		apiOrderDelta: Int = 1,
+		sectionNameKeyPath: String? = nil, cacheName: String? = nil,
 		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo,
 		customApiSettings: CoreDataAPI<Bridge>.Settings? = nil
 	) {
@@ -74,7 +75,12 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		self.pageInfoRetriever = pageInfoRetriever
 		self.pageInfoToRequestUserInfo = pageInfoToRequestUserInfo
 		self.localDbRequest = apiSettings.fetchRequestToBridgeRequest(fetchRequest as! NSFetchRequest<NSFetchRequestResult>, .always)
-		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: controllerFetchRequest, managedObjectContext: api.localDb.context, sectionNameKeyPath: nil, cacheName: nil)
+		self.resultsController = NSFetchedResultsController<FetchedObject>(
+			fetchRequest: controllerFetchRequest,
+			managedObjectContext: api.localDb.context,
+			sectionNameKeyPath: sectionNameKeyPath,
+			cacheName: cacheName
+		)
 		
 		self.apiOrderDelta = apiOrderDelta
 		self.apiOrderProperty = apiOrderProperty

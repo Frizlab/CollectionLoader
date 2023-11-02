@@ -50,6 +50,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		listElementEntity: NSEntityDescription, listProperty: NSRelationshipDescription,
 		apiOrderProperty: NSAttributeDescription, apiOrderDelta: Int = 1,
 		additionalFetchRequestPredicate: NSPredicate? = nil,
+		sectionNameKeyPath: String? = nil, cacheName: String? = nil,
 		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo,
 		customApiSettings: CoreDataAPI<Bridge>.Settings? = nil
 	) throws {
@@ -61,6 +62,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 			listElementFetchRequest: fetchRequest,
 			listProperty: listProperty, apiOrderProperty: apiOrderProperty, apiOrderDelta: apiOrderDelta,
 			additionalFetchRequestPredicate: additionalFetchRequestPredicate,
+			sectionNameKeyPath: sectionNameKeyPath, cacheName: cacheName,
 			pageInfoToRequestUserInfo: pageInfoToRequestUserInfo
 		)
 	}
@@ -75,6 +77,7 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		listElementFetchRequest: NSFetchRequest<ListElementObject>, listProperty: NSRelationshipDescription,
 		apiOrderProperty: NSAttributeDescription, apiOrderDelta: Int = 1,
 		additionalFetchRequestPredicate: NSPredicate? = nil,
+		sectionNameKeyPath: String? = nil, cacheName: String? = nil,
 		pageInfoToRequestUserInfo: @escaping (PageInfo) -> Bridge.RequestUserInfo,
 		customApiSettings: CoreDataAPI<Bridge>.Settings? = nil
 	) throws {
@@ -116,7 +119,12 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 		}
 		if let additionalFetchRequestPredicate, let fPredicate = fetchedResultsControllerFetchRequest.predicate {fetchedResultsControllerFetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [fPredicate, additionalFetchRequestPredicate])}
 		else if let additionalFetchRequestPredicate                                                             {fetchedResultsControllerFetchRequest.predicate = additionalFetchRequestPredicate}
-		self.resultsController = NSFetchedResultsController<FetchedObject>(fetchRequest: fetchedResultsControllerFetchRequest, managedObjectContext: api.localDb.context, sectionNameKeyPath: nil, cacheName: nil)
+		self.resultsController = NSFetchedResultsController<FetchedObject>(
+			fetchRequest: fetchedResultsControllerFetchRequest,
+			managedObjectContext: api.localDb.context,
+			sectionNameKeyPath: sectionNameKeyPath,
+			cacheName: cacheName
+		)
 	}
 	
 	/* *************************
