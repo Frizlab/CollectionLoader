@@ -122,7 +122,7 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 		catch {Self.callDidFinishLoading(on: delegate, pageLoadDescription: pageLoadDescription, results: .failure(error)); return}
 		
 		/* Yes, self is strongly captured, on purpose. */
-		let prestart = BlockOperation{
+		let prestart = BlockOperation{ @MainActor in /* Swift does not know it, but these block _are_ @MainActor indeed. */
 			/* On main queue (and thus on main actor/thread). */
 			/* Let’s call the delegate first. */
 			Self.callWillStartLoading(on: delegate, pageLoadDescription: pageLoadDescription)
@@ -133,7 +133,7 @@ public final class CollectionLoader<Helper : CollectionLoaderHelperProtocol> {
 			self.currentOperation = self.pendingOperations.removeFirst() /* Crashes if pendingOperations is empty, which is what we want. */
 		}
 		/* Yes, self is strongly captured, on purpose. */
-		let completion = BlockOperation{
+		let completion = BlockOperation{ @MainActor in /* Swift does not know it, but these block _are_ @MainActor indeed. */
 			/* On main queue (and thus on main actor/thread). */
 			/* First, we’ll check for the previous/next page info depending on the loading reason. */
 			let loadingOperationResults = helper.results(from: operation)
