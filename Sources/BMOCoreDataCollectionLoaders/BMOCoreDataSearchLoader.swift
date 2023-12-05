@@ -118,14 +118,21 @@ where Bridge.LocalDb.DbObject == NSManagedObject/* and NOT FetchedObject */,
 	public func operationForLoading(pageInfo: PageInfo, delegate: LoadingOperationDelegate<PreCompletionResults>) throws -> LoadingOperation {
 		assert(resultsController.delegate != nil, "The delegate of the results controller has not been set.")
 		assert(resultsController.fetchedObjects != nil, "performFetch has not been called on the results controller.")
-#warning("TODO: apiOrderProperty (requires the start offset of the page info…)")
 		let helper = BMORequestHelperForLoader<FetchedObject, Bridge.Metadata>(
 			loadingOperationDelegate: delegate,
-			importChangesProcessing: { changes, throwIfCancelled in
-				/* We only want objects of the correct type in the pre-completion results. */
+			importChangesProcessing: { [apiOrderProperty, apiOrderDelta] changes, throwIfCancelled in
 				try changes.importedObjects.compactMap{
 					try throwIfCancelled()
-					return $0.object as? FetchedObject
+					/* We only want objects of the correct type in the pre-completion results. */
+					guard let o = $0.object as? FetchedObject else {
+						return nil
+					}
+					/* If we have an API order property, it is time to set its value. */
+					if let orderProperty = apiOrderProperty?.name {
+#warning("TODO: apiOrderProperty (requires the start offset of the page info…)")
+						o.setValue(1, forKey: orderProperty)
+					}
+					return o
 				}
 			}
 		)
